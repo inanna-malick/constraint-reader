@@ -8,9 +8,6 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeOperators #-}
-
--- lol wtf is this, warning msg suggested it
--- ok it makes the warnings go away, cool
 {-# LANGUAGE MonoLocalBinds #-}
 
 module DataStore where
@@ -30,10 +27,7 @@ import Metrics
 import Types (Todo(..))
 ------------------------------------------------------------------------------
 
-
 -- DATASTORE BOILERPLATE
--- supports : writing todo note, reading all todo notes
--- note to self: have parameterized over.. idk, error type? then just Constrain that to exception and dot dot dot
 
 data DataStore err (mc :: (* -> *) -> Constraint) = DataStore
   { writeTodoCapability :: forall m . mc m => Todo -> m (Either err ())
@@ -70,7 +64,7 @@ instance ( MonadMetrics m
          ) => MockDataStoreDeps m
 
 
--- mock data store, backed by ioref
+-- mock data store, backed by ioref, includes toy validation logic to demonstrate error path
 mockDataStore :: IORef.IORef [Todo] -> DataStore MockDataStoreError MockDataStoreDeps
 mockDataStore ior = DataStore
   { writeTodoCapability = \todo -> do
