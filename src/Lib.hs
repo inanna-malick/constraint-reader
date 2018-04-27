@@ -22,7 +22,10 @@ someFunc = putStrLn "someFunc"
 
 
 
-data Logging (mc :: (* -> *) -> Constraint) = Logging { logMsgCapability :: forall m . mc m => String -> m () }
+-- LOGGING
+
+data Logging (mc :: (* -> *) -> Constraint) =
+  Logging { logMsgCapability :: forall m . mc m => String -> m () }
 
 class HasLogging s a | s -> a where
     logging :: Lens' s a
@@ -32,26 +35,37 @@ class MonadLogging m where
   logMsg :: String -> m ()
 
 
-instance (HasLogging env (Logging mc), MonadIO m, mc m) => MonadLogging (ReaderT env m) where
--- instance (HasLogging env (Logging mc), MonadIO m, mc m) => MonadLogging (ReaderT env m) where
+instance (HasLogging env (Logging mc), Monad m, mc m)
+    => MonadLogging (ReaderT env m) where
+
   logMsg msg = do
-    (env :: env) <- ask
-    let x = env ^. logging
-        fn = logMsgCapability x
+    fn <- asks (logMsgCapability . view logging)
+    -- let x = env ^. logging
+    --     fn = logMsgCapability x
     lift $ fn msg
 
 
+-- METRICS
 
--- newtype CounterName = CounterName { unCounterName :: String }
+data Metrics (mc :: (* -> *) -> Constraint) =
+  Metrics { incrCounterCapability :: forall m . mc m => CounterName -> m () }
 
--- class HasMetrics env where
---     getMetrics :: env -> (CounterName -> IO ())
+class HasMetrics s a | s -> a where
+    metrics :: Lens' s a
 
--- -- | simplified metrics service
--- class MonadMetrics m where
---   incrementCounter :: CounterName -> m ()
+-- | simplified metrics service
+class MonadMetrics m where
+  incrementCounter :: CounterName -> m ()
 
--- instance (HasMetrics env, MonadIO m) => MonadMetrics (ReaderT env m) where
---   incrementCounter cn = do
---     fn <- asks getMetrics
---     liftIO $ fn cn
+instance (HasMetrics env (Metrics mc), Monad m, mc m)
+    => MonadMetrics (ReaderT env m) where
+
+  incrementCounter cn = do
+    fn <- asks (incrCounterCapability . view metrics)
+    lift $ fn cn
+
+
+
+-- NEWTYPES
+
+newtype CounterName = CounterName { unCounterName :: String }
