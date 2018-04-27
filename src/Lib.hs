@@ -17,6 +17,7 @@ module Lib
     ( someFunc
     ) where
 
+------------------------------------------------------------------------------
 import           Control.Lens
 import           Control.Monad.IO.Class (liftIO, MonadIO)
 import           Control.Monad.Trans.Class (lift)
@@ -25,6 +26,12 @@ import           Data.Foldable (traverse_)
 import qualified Data.IORef as IORef
 import           Data.List (isInfixOf)
 import           Control.Monad.Reader
+------------------------------------------------------------------------------
+import DataStore
+import Logging
+import Metrics
+import Types (Todo(..))
+------------------------------------------------------------------------------
 
 someFunc :: IO ()
 someFunc = withEnv $ \env -> flip runReaderT env $ do
@@ -94,133 +101,3 @@ withEnv k = do
                   , envDataStore = mockDataStore ior
                   }
 
--- LOGGING BOILERPLATE
-
-data Logging (mc :: (* -> *) -> Constraint) =
-  Logging { logMsgCapability :: forall m . mc m => String -> m () }
-
-class HasLogging s a | s -> a where
-    logging :: Lens' s a
-
--- | simplified logging service
-class MonadLogging m where
-  logMsg :: String -> m ()
-
-
-instance (HasLogging env (Logging mc), MonadReader env m, mc m) => MonadLogging m where
-  logMsg msg = do
-    fn <- asks (logMsgCapability . view logging)
-    fn msg
-
--- LOGGING SERVICE IMPL
-
-stdoutLogging :: Logging MonadIO -- only requirement is the ability to do IO, could also have MonadResource for file handle (todo: that)
-stdoutLogging = Logging {logMsgCapability = liftIO . putStrLn . ("logmsg: " ++)}
-
--- METRICS BOILERPLATE
-
-data Metrics (mc :: (* -> *) -> Constraint) =
-  Metrics { incrCounterCapability :: forall m . mc m => CounterName -> m () }
-
-class HasMetrics s a | s -> a where
-    metrics :: Lens' s a
-
--- | simplified metrics service
-class MonadMetrics m where
-  incrementCounter :: CounterName -> m ()
-
-
-instance (HasMetrics env (Metrics mc), MonadReader env m, mc m) => MonadMetrics m where
-  incrementCounter cn = do
-    fn <- asks (incrCounterCapability . view metrics)
-    fn cn
-
--- METRICS SERVICE IMPL
-
-mockMetrics :: Metrics MonadLogging -- only requirement is ability to log 'counter increment' ops
-mockMetrics = Metrics
-  { incrCounterCapability = \cn -> logMsg $ "(MOCK METRICS) increment:" ++ show cn
-  }
-
-
--- DATASTORE BOILERPLATE
--- supports : writing todo note, reading all todo notes
--- note to self: have parameterized over.. idk, error type? then just Constrain that to exception and dot dot dot
-
-data DataStore err (mc :: (* -> *) -> Constraint) = DataStore
-  { writeTodoCapability :: forall m . mc m => Todo -> m (Either err ())
-  , readAllTodosCapability :: forall m . mc m => m (Either err [Todo])
-  }
-
-class HasDataStore s a | s -> a where
-    datastore :: Lens' s a
-
--- | simplified datastore service
-class MonadDataStore err m where
-  writeTodo :: Todo -> m (Either err ())
-  readAllTodos :: m (Either err [Todo])
-
-
-instance (HasDataStore env (DataStore err mc), MonadReader env m, mc m) => MonadDataStore err m where
-  writeTodo todo = do
-    fn <- asks (writeTodoCapability . view datastore)
-    fn todo
-
-  readAllTodos = do
-    fn <- asks (readAllTodosCapability . view datastore)
-    fn
-
--- DATASTORE SERVICE MOCK IMPL
-
-class ( MonadMetrics m
-      , MonadLogging m
-      , MonadIO m
-      ) => MockDataStoreDeps m
-instance ( MonadMetrics m
-         , MonadLogging m
-         , MonadIO m
-         ) => MockDataStoreDeps m
-
-
--- mock data store, backed by ioref
-mockDataStore :: IORef.IORef [Todo] -> DataStore MockDataStoreError MockDataStoreDeps
-mockDataStore ior = DataStore
-  { writeTodoCapability = \todo -> do
-      logMsg $ "[DATASTORE] attempting to write todo: " ++ show todo
-
-      -- arbitrary and artificial validation check to demonstrate error resp path
-      if ("heck" `isInfixOf` body todo)
-        then do
-          logMsg "[DATASTORE] this is a christian server, no swearing!"
-          incrementCounter $ CounterName "datastore-errors"
-          pure $ Left $ MockDataStoreError "no swearing allowed"
-
-        -- if validation passes, append to the ioref's list
-        else do
-          liftIO $ IORef.modifyIORef ior (++ [todo])
-          logMsg $ "[DATASTORE] wrote todo: " ++ show todo
-          incrementCounter $ CounterName "datastore-writes"
-          pure $ Right ()
-
-  , readAllTodosCapability = do
-      logMsg $ "[DATASTORE] attempting to read all todos"
-      msgs <- liftIO $ IORef.readIORef ior
-
-      -- another totally artificial and arbitrary demonstration of error path
-      if (length msgs > 3)
-        then do
-          logMsg "[DATASTORE] idk buffer flow or something"
-          incrementCounter $ CounterName "datastore-errors"
-          pure $ Left $ MockDataStoreError "buffer overflow (?)"
-        else
-          pure $ Right msgs
-  }
-
-
--- NEWTYPES
-
-newtype CounterName = CounterName { unCounterName :: String } deriving Show
-
-data Todo = Todo { description :: String, body :: String } deriving (Show, Eq, Ord)
-
-newtype MockDataStoreError = MockDataStoreError { unMockDataStoreError :: String } deriving Show
