@@ -8,9 +8,6 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeOperators #-}
-
--- lol wtf is this, warning msg suggested it
--- ok it makes the warnings go away, cool
 {-# LANGUAGE MonoLocalBinds #-}
 
 module Lib
