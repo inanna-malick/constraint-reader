@@ -71,7 +71,7 @@ doBizLogic ts = do
   where
     validateTodo t = (not . null . description $ t) && (not . null . body $ t)
 
--- TOP-LEVEL ENV BOILERPLATE
+-- TOP-LEVEL ENV BOILERPLATE, much of this could be autogen'd
 data Env =
   Env { envLogging :: Logging MonadIO
       , envMetrics :: Metrics MonadLogging
@@ -83,7 +83,6 @@ instance HasMetrics Env (Metrics MonadLogging) where
 
 instance HasLogging Env (Logging MonadIO) where
     logging = lens envLogging (\s a -> s { envLogging = a })
-
 
 instance HasDataStore Env (DataStore MockDataStoreError MockDataStoreDeps) where
     datastore = lens envDataStore (\s a -> s { envDataStore = a })
