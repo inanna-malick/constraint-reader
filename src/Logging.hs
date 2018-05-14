@@ -15,7 +15,7 @@ module Logging where
 import           Control.Lens
 import           Control.Monad.IO.Class (liftIO, MonadIO)
 import           Control.Monad.Trans.Class (lift)
-import           Data.Constraint
+import           Data.Constraint (Constraint)
 import           Data.Foldable (traverse_)
 import qualified Data.IORef as IORef
 import           Data.List (isInfixOf)
