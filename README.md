@@ -33,13 +33,28 @@ blogpost outline:
 ## Dependency Management using the ReaderT pattern
 
 - key points
--- link
--- one or two things about limitations of mt stacks in async envs
--- capabilities:
+-- describe app, provide bash + curl commands
+-- describe implemnetation strategy: we want to be able to fork threads and run and unify async io, so we're going to put a bunch of capabilities (records containing useful functions) in some record, `Env`. We'll run our whole app in `ReaderT Env IO`. If you're not already familiar with this approach, I encourage you to read (FP link) which both describes and motivates this approach (tldr: StateT, WriterT, etc have subtle flaws when used with `Async` so just use a record with an `IORef` instead of stack a bunch of monad transformers)
+-- We want to be able to have our capabilities _reference each other_. There are two ways to do so. The first (having each ) involves using an infinite type when you attempt to construct an instance of your `Env` type.
+```
+data FooCap m = FooCap { fooCap :: m () } -- some action that just runs in IO
+data BarCap m = BarCap { barCap :: m () } -- some action that requires IO + Foo
+data BazEnv m = BazEnv
+  { foo :: FooCap IO
+  , bar :: BarCap (ReaderT (FooEnv m) IO)
+  }
+
+bazEnv :: BazEnv (ReaderT (BazEnv (ReaderT (BazEnv ...
+```
+
+The second way, the approach that this post will focus on, relies on parameterizing our capabilities not by the concrete monad stacks they run in but by the _constraints_ that they impose on their monad stack. Let's start with a stripped-down example to make it clear what I mean by parameterizing a data instance not on a type but on a _constraint_.
+
+```
+```
 
 - introduce problem: building up a stack of dependencies to do ReaderT pattern
 - introduce 1x service with toy example (just copy examples from ReaderT article w/ citation ofc)
-
+ -
 
 -- link this with a few sentences summary about nondesirability of deep monad transformer stacks for async work
 https://www.fpcomplete.com/blog/2017/06/readert-design-pattern

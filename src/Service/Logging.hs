@@ -1,16 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE RankNTypes             #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE MonoLocalBinds #-}
-
-module Logging where
+module Service.Logging where
 
 ------------------------------------------------------------------------------
 import           Control.Lens

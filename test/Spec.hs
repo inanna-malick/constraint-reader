@@ -1,8 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 ------------------------------------------------------------------------------
 import           Control.Lens
@@ -14,13 +9,13 @@ import qualified Data.IORef as IORef
 import           Data.Map (Map)
 import qualified Data.Map as Map
 ------------------------------------------------------------------------------
-import Test.Hspec
+import           Test.Hspec
 ------------------------------------------------------------------------------
-import DataStore
-import Lib
-import Logging
-import Metrics
-import Types (Todo(..))
+import           Lib
+import           Service.DataStore
+import           Service.Logging
+import           Service.Metrics
+import           Types (Todo(..))
 ------------------------------------------------------------------------------
 
 data TestEnv = TestEnv

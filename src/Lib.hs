@@ -1,15 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE RankNTypes             #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE MonoLocalBinds #-}
-
 module Lib
     ( writeTodo
     , readAllTodos
@@ -19,10 +7,10 @@ module Lib
 import qualified Data.Aeson as Aeson
 import           Data.List (isInfixOf)
 ------------------------------------------------------------------------------
-import DataStore
-import Logging
-import Metrics
-import Types (Todo(..))
+import           Service.DataStore
+import           Service.Logging
+import           Service.Metrics
+import           Types (Todo(..))
 ------------------------------------------------------------------------------
 
 -- TODO:try imposing exceptT constraint via some of these instead of returning in Either?
@@ -71,7 +59,7 @@ readAllTodos = do
     Left (DecodeError x) -> do
       logMsg $ LogMsg Error $ "unable to decode value" ++ show x
       incrementCounter $ CounterName "decode-errors"
-    Left (UnableToConnectError msg) ->
-      logMsg $ LogMsg Error $ "unable to connect to data store: " ++ msg
+    Left (DataStoreError re) ->
+      logMsg $ LogMsg Error $ "unable to connect to data store due to error: " ++ show re
     _ -> pure ()
   pure res

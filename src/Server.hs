@@ -1,17 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE RankNTypes             #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MonoLocalBinds #-}
-
 module Server (runServer) where
 
 ------------------------------------------------------------------------------
@@ -19,27 +5,20 @@ import           Control.Lens (lens)
 import qualified Control.Monad.Except as E
 import           Control.Monad.IO.Class (MonadIO)
 import qualified Control.Monad.Reader as R
+-- not great for production (obfuscates actual potentially non-total string conversions)
+-- but string-conv is extremely convenient
+import           Data.String.Conv (toS)
 import qualified Database.Redis.IO as Redis
 import           Network.Wai.Handler.Warp (run)
 import           Servant
 import qualified System.Logger as TinyLog
 ------------------------------------------------------------------------------
-import           DataStore
-import           Logging
+import           Service.DataStore
+import           Service.Logging
 import           Lib
-import           Metrics
+import           Service.Metrics
 import           Types (Todo(..))
 ------------------------------------------------------------------------------
-
-
-
-
-
-
--- not great for production (obfuscates actual potentially non-total string conversions)
--- but string-conv is extremely convenient
-import Data.String.Conv (toS)
-
 
 type API = "todos" :> Get '[JSON] [Todo]
       :<|> "todos" :> ReqBody '[JSON] Todo :> Post '[JSON] ()
@@ -83,8 +62,9 @@ serverT = getTodos
 
     toErrorResponse = \case
       ValidationError msg -> err400 { errBody =  toS $ "validation error:" ++ msg }
-      DecodeError _ -> err500 { errBody = toS $ "error decoding object in database" }
-      UnableToConnectError msg -> err500 { errBody = toS $ "unable to connect due to: " ++ msg }
+      DecodeError _ -> err500 { errBody = "error decoding object in database" }
+      DataStoreError re ->
+        err500 { errBody = toS $ "unable to connect due to data store error: " ++ show re }
 
 
 

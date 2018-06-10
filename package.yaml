@@ -8,16 +8,24 @@ copyright:           "2018 Author name here"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
 
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on Github at <https://github.com/githubuser/constraint-reader#readme>
+default-extensions:
+- ConstraintKinds
+- DataKinds
+- DeriveGeneric
+- ConstraintKinds       
+- FlexibleContexts      
+- FlexibleInstances
+- FunctionalDependencies
+- KindSignatures        
+- LambdaCase
+- MonoLocalBinds
+- MultiParamTypeClasses
+- OverloadedStrings
+- RankNTypes            
+- UndecidableInstances  
+- ScopedTypeVariables   
+- TypeOperators
 
 dependencies:
 - base >= 4.7 && < 5

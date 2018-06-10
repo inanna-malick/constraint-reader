@@ -1,17 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE RankNTypes             #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MonoLocalBinds #-}
-
-module DataStore where
+module Service.DataStore where
 
 ------------------------------------------------------------------------------
 import           Control.Lens
@@ -22,8 +9,8 @@ import           Data.Constraint
 import qualified Data.IORef as IORef
 import qualified Database.Redis.IO as Redis
 ------------------------------------------------------------------------------
-import Logging
-import Metrics
+import           Service.Logging
+import           Service.Metrics
 ------------------------------------------------------------------------------
 
 -- DATASTORE BOILERPLATE
@@ -102,8 +89,8 @@ inMemoryDataStore ior = DataStore
   }
 
 -- TODO: figure out how to throw these via exceptT? kinda tending towards nah
-data DataStoreError
+data DataStoreError 
   = ValidationError String
   | DecodeError ByteString -- includes value that failed to decode
-  | UnableToConnectError String
+  | DataStoreError Redis.RedisError
   deriving (Eq, Show)

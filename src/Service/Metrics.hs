@@ -1,30 +1,17 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE RankNTypes             #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE MonoLocalBinds #-}
-
-module Metrics where
+module Service.Metrics where
 
 ------------------------------------------------------------------------------
 import           Control.Lens
+import           Control.Monad.Reader
 import           Control.Monad.State (MonadState)
 import qualified Control.Monad.State as S
 import           Data.Constraint (Constraint)
 import qualified Data.Map as M
-import           Control.Monad.Reader
-------------------------------------------------------------------------------
-import Logging
-------------------------------------------------------------------------------
+import           Data.String.Conv (toS)
 import qualified Database.Redis.IO as Redis
-import Data.String.Conv (toS)
+------------------------------------------------------------------------------
+import           Service.Logging
+------------------------------------------------------------------------------
 
 -- METRICS BOILERPLATE
 
