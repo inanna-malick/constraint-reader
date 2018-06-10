@@ -16,11 +16,7 @@ module Lib
 
 ------------------------------------------------------------------------------
 import           Control.Lens
-import           Control.Monad.IO.Class (liftIO, MonadIO)
-import           Control.Monad.Trans.Class (lift)
-import           Data.Foldable (traverse_)
 import qualified Data.IORef as IORef
-import           Data.List (isInfixOf)
 import           Control.Monad.Reader
 ------------------------------------------------------------------------------
 import DataStore
@@ -29,37 +25,38 @@ import Metrics
 import Types (Todo(..))
 ------------------------------------------------------------------------------
 
+-- TODO: all these should be mirrored in tests..
 someFunc :: IO ()
 someFunc = withEnv $ \env -> flip runReaderT env $ do
   let todos1 = [Todo "task 1" "do that thing", Todo "malformed" ""]
   res1 <- doBizLogic todos1
-  logMsg $ "res1: " ++ show res1
+  logInfo $ "res1: " ++ show res1
   let todos2 = [Todo "task 2" "do that other thing", Todo "task 3" "oh heck"]
   res2 <- doBizLogic todos2
-  logMsg $ "res2: " ++ show res2
+  logInfo $ "res2: " ++ show res2
   let todos3 = [Todo "task 3" "do that third thing", Todo "task 4" "fix buffer overflow when size of tasks > 3"]
   res3 <- doBizLogic todos3
-  logMsg $ "res3: " ++ show res3
+  logInfo $ "res3: " ++ show res3
 
 
 
 -- accept a batch of todos, do some validation and drop any invalid while logging,
 -- write all valid to data store, read out new state of data store
 doBizLogic
-  :: ( MonadDataStore err m
+  :: ( MonadDataStore MockDataStoreError m
      , MonadLogging m
      , MonadMetrics m
      , Monad m
      )
   => [Todo]
-  -> m (Either err [Todo])
+  -> m (Either MockDataStoreError [Todo])
 doBizLogic ts = do
     errs <- flip traverse ts $ \t ->
               if (validateTodo t)
                 then writeTodo t
                 else do
                   -- just drop any msgs with blank fields (todo: drop?)
-                  logMsg $ "[BIZLOGIC ERROR] invalid todo msg: " ++ show t
+                  logInfo $ "[BIZLOGIC ERROR] invalid todo msg: " ++ show t
                   pure $ Right ()
     let errs' = traverse id errs
     -- todo: runExceptT or w/e

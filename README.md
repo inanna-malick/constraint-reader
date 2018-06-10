@@ -1,6 +1,18 @@
 # constraint-reader
 
 
+NOTES CIRCA JUNEISH
+
+- link fpcomplete readert or simliar as backgroudn reading
+-- 'however, if you haven't read it it is my intent that this be able to stand on its own'.
+- use testing complex series of services in pure monad stack as motivation
+-- I bet bayhac stuff from last year is online. Watch sandy's thing on eff and crib arguments re: utilty, after all it's still all there
+- include short reference to, eg, conduit, leaving type non-concrete allows composition of things that embed the monad stack (and thus require more than lift/liftIO)
+
+- start with tests first, have testing at ever phase (eg really minimal test for logger/metrics)
+- use to illustrate how pure monad stack tests look (with caveat noted that these tests are kinda meh)
+END NOTES CIRCA JUNEISH
+
 blogpost outline:
 
 ## Dependency Management using the ReaderT pattern
@@ -22,6 +34,32 @@ https://www.fpcomplete.com/blog/2017/06/readert-design-pattern
 ### Simple Services using the ReaderT pattern
 
 basic idea: introduce Logging and Metrics because tbf I'll need them anyway
+
+Note: there's some lens boilerplate around `HasLogging` and `HasMetrics` that you don't really need to understand.
+
+```
+data Logging m = 
+  Logging { logInfo :: String -> m () }
+
+class HasLogging s a | s -> a where
+    logging :: Lens' s a
+
+data Metrics m =
+  Metrics { incrementCounterC :: CounterName -> m () }
+
+class HasMetrics s a | s -> a where
+    metrics :: Lens' s a
+```
+
+To save on space I'm going to hold off on implementations, but the standard impls would likely be in IO. 
+Calling code would then do something like this
+
+```
+data AppCapbilities = AppCaps { appLogging :: Logging IO, appMetrics :: appMetrics IO }
+data AppCapbilities m = AppCaps { appLogging :: Logging m, appMetrics :: appMetrics m}
+let myCaps = AppCaps { appLogging = ioLogging, appMetrics }
+```
+
 
 - use that to sketch out some service that does both logging and metrics.
 
@@ -45,7 +83,7 @@ basic idea: introduce Logging and Metrics because tbf I'll need them anyway
 
 ### Sidebar: Let's learn just enough about Data.Constraint to cargo cult our way through this
 
-(The constraints packaged)[https://hackage.haskell.org/package/constraints], published by Kmett (sign one you're about ot get into some truly mindbending stuff).
+(constraints)[https://hackage.haskell.org/package/constraints], a package published by E. Kmett, has this description:
 
 > GHC 7.4 gave us the ability to talk about ConstraintKinds. They stopped crashing the compiler in GHC 7.6.
 
@@ -53,13 +91,11 @@ basic idea: introduce Logging and Metrics because tbf I'll need them anyway
 
 
 So, that's mildly indimidating. Fortuanately all we really need is one thing, `Constraint`. `Constraint` exists
-at the kind level and is used to represent _constraints_ as imposed by type classes. Lets take a look at the _kind_
-of a few common types and constraints to illustrate how these work. `:k FooBar` can be used to find the kind of some 
+at the kind level and is used to represent _constraints_ as imposed by type classes. Lets take a look at the kind
+of a few common types and constraints to illustrate how these work. `:k` can be used to find the kind of some 
 type or constraint from within the repl. Here are some examples:
 
 ```
-λ: :k Functor
-Functor :: (* -> *) -> Constraint
 λ: :k Show
 Show :: * -> Constraint
 λ: :k Int

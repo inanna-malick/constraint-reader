@@ -14,12 +14,10 @@ module Metrics where
 
 ------------------------------------------------------------------------------
 import           Control.Lens
-import           Control.Monad.IO.Class (liftIO, MonadIO)
-import           Control.Monad.Trans.Class (lift)
+import           Control.Monad.State (MonadState)
+import qualified Control.Monad.State as S
 import           Data.Constraint (Constraint)
-import           Data.Foldable (traverse_)
-import qualified Data.IORef as IORef
-import           Data.List (isInfixOf)
+import qualified Data.Map as M
 import           Control.Monad.Reader
 ------------------------------------------------------------------------------
 import Logging
@@ -28,7 +26,7 @@ import Logging
 -- METRICS BOILERPLATE
 
 data Metrics (mc :: (* -> *) -> Constraint) =
-  Metrics { incrCounterCapability :: forall m . mc m => CounterName -> m () }
+  Metrics { incrementCounterC :: forall m . mc m => CounterName -> m () }
 
 class HasMetrics s a | s -> a where
     metrics :: Lens' s a
@@ -40,16 +38,21 @@ class MonadMetrics m where
 
 instance (HasMetrics env (Metrics mc), MonadReader env m, mc m) => MonadMetrics m where
   incrementCounter cn = do
-    fn <- asks (incrCounterCapability . view metrics)
+    fn <- asks (incrementCounterC . view metrics)
     fn cn
 
 -- METRICS SERVICE IMPL
-
+-- TODO: also back w/ redis, easy enough to do
 mockMetrics :: Metrics MonadLogging -- only requirement is ability to log 'counter increment' ops
 mockMetrics = Metrics
-  { incrCounterCapability = \cn -> logMsg $ "(MOCK METRICS) increment:" ++ show cn
+  { incrementCounterC = \cn -> logInfo $ "(MOCK METRICS) increment:" ++ show cn
   }
 
+-- test metrics service that uses underlying 'State' monad to store map of metrics
+testMetrics :: Metrics (MonadState (M.Map CounterName Int))
+testMetrics = Metrics
+  { incrementCounterC = \cn -> S.modify (M.insertWith (+) cn 1)
+  }
 
 -- TYPES
-newtype CounterName = CounterName { unCounterName :: String } deriving Show
+newtype CounterName = CounterName { unCounterName :: String } deriving (Eq, Ord, Show)

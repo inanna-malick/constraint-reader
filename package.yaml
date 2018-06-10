@@ -21,7 +21,10 @@ description:         Please see the README on Github at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- aeson
+- bytestring
 - constraints
+- containers
 - lens
 - mtl
 - transformers
@@ -50,3 +53,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - constraint-reader
+    - hspec
