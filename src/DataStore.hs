@@ -58,67 +58,88 @@ instance (HasDataStore env (DataStore err mc), MonadReader env m, mc m) => Monad
 class ( MonadMetrics m
       , MonadLogging m
       , MonadIO m
-      ) => MockDataStoreDeps m
+      ) => RedisDataStoreDeps m
 instance ( MonadMetrics m
          , MonadLogging m
          , MonadIO m
-         ) => MockDataStoreDeps m
+         ) => RedisDataStoreDeps m
 
 
--- TODO: try imposing exceptT constraint via some of these instead of returning in Either?
+-- TODO:try imposing exceptT constraint via some of these instead of returning in Either?
 writeTodo
-  :: ( MonadDataStore MockDataStoreError m
+  :: ( MonadDataStore DataStoreError m
      , MonadLogging m
      , MonadMetrics m
      , Monad m
      )
   => Todo
-  -> m (Either MockDataStoreError ())
+  -> m (Either DataStoreError ())
 writeTodo todo = do
-      logInfo $ "[DATASTORE] attempting to write todo: " ++ show todo
+      logMsg $ LogMsg Debug $ "[DATASTORE] attempting to write todo: " ++ show todo
+      incrementCounter $ CounterName "attempted-list-appends"
 
       -- business logic
       if ("heck" `isInfixOf` body todo)
         then do
-          logInfo "[DATASTORE] this is a christian server, no swearing!"
+          logMsg $ LogMsg Error "[DATASTORE] this is a christian server, no swearing!"
           incrementCounter $ CounterName "profanity-violations"
           -- TODO: better name or w/e
-          pure $ Left $ MockDataStoreError "no swearing allowed"
+          pure $ Left $ ValidationError "no swearing allowed"
 
         -- if validation passes, append to the ioref's list
         else do
+          incrementCounter $ CounterName "todo-list-appends"
           res <- appendToList Aeson.encode todo
-          logInfo $ "[DATASTORE] wrote todo: " ++ show todo
+          logMsg $ LogMsg Info $ "[DATASTORE] wrote todo: " ++ show todo
           pure res
 
 
 readAllTodos
-  :: ( MonadDataStore MockDataStoreError m
+  :: ( MonadDataStore DataStoreError m
      , MonadLogging m
+     , MonadMetrics m
      , Monad m
      )
-  
-  => m (Either MockDataStoreError [Todo])
+  => m (Either DataStoreError [Todo])
 readAllTodos = do
   -- TODO: kinda spurious logging maybe
-  logInfo $ "[DATASTORE] attempting to read all todos"
-  readAllList (maybe (Left $ MockDataStoreError "decode failed") Right . Aeson.decode)
+  logMsg $ LogMsg Debug $ "[DATASTORE] attempting to read all todos"
+  -- TODO: do logging, metrics, etc here, also move these fn's to Lib to replace biz logic
+  -- TODO: have domain error type instead of using IMK stuff errywhere
+  res <- readAllList (\x -> maybe (Left $ DecodeError x) Right $ Aeson.decode x)
+  case res of
+    Left (DecodeError x) -> do
+      logMsg $ LogMsg Error $ "unable to decode value" ++ show x
+      incrementCounter $ CounterName "decode-errors"
+    Left (UnableToConnectError msg) ->
+      logMsg $ LogMsg Error $ "unable to connect to data store: " ++ msg
+    _ -> pure ()
+  pure res
+
+-- TODO: redis and shit
+redisDataStore :: DataStore DataStoreError RedisDataStoreDeps
+redisDataStore = DataStore
+  { appendToListC = \_ _ -> undefined
+
+  , readAllListC = \_ -> undefined
+  }
 
 
--- TODO: move this logic -OUT- whole point is biz logic cares not for underlying impl, ioref should be treated as implementation detail, most logic should be in _functions that use datastore_, also can maybe use IOREF for test and, eg, redis for actual (w/ minimal gen'd json instances, etc)
--- mock data store, backed by ioref, includes toy validation logic to demonstrate error path
-mockDataStore :: IORef.IORef [ByteString] -> DataStore MockDataStoreError MockDataStoreDeps
-mockDataStore ior = DataStore
+-- | in-memory data store for use in tests, backed by 'IORef'
+inMemoryDataStore :: IORef.IORef [ByteString] -> DataStore DataStoreError MonadIO
+inMemoryDataStore ior = DataStore
   { appendToListC = \f elem' -> do
-      incrementCounter $ CounterName "list-appends"
       liftIO $ IORef.modifyIORef ior (++ [f elem'])
       pure $ Right ()
 
   , readAllListC = \f -> do
-      logInfo $ "[DATASTORE] attempting to read all todos"
       msgs <- liftIO $ IORef.readIORef ior
       pure $ traverse f msgs
   }
 
-
-newtype MockDataStoreError = MockDataStoreError { unMockDataStoreError :: String } deriving Show
+-- TODO: figure out how to throw these via exceptT? kinda tending towards nah
+data DataStoreError
+  = ValidationError String
+  | DecodeError ByteString -- includes value that failed to decode
+  | UnableToConnectError String
+  deriving (Eq, Show)

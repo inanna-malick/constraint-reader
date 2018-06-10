@@ -45,7 +45,7 @@ instance (HasMetrics env (Metrics mc), MonadReader env m, mc m) => MonadMetrics 
 -- TODO: also back w/ redis, easy enough to do
 mockMetrics :: Metrics MonadLogging -- only requirement is ability to log 'counter increment' ops
 mockMetrics = Metrics
-  { incrementCounterC = \cn -> logInfo $ "(MOCK METRICS) increment:" ++ show cn
+  { incrementCounterC = \cn -> logMsg $ LogMsg Info ("(MOCK METRICS) increment:" ++ show cn)
   }
 
 -- test metrics service that uses underlying 'State' monad to store map of metrics
