@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import Test.Hspec
 ------------------------------------------------------------------------------
 import DataStore
+import Lib
 import Logging
 import Metrics
 import Types (Todo(..))
@@ -29,7 +30,7 @@ data TestEnv = TestEnv
   }
 
 instance HasMetrics TestEnv (Metrics (S.MonadState (Map CounterName Int))) where
-    metrics = lens testEnvMetrics (\s a -> s { testEnvMetrics = a })
+    metricsLen = lens testEnvMetrics (\s a -> s { testEnvMetrics = a })
 
 instance HasLogging TestEnv (Logging (W.MonadWriter [LogMsg])) where
     logging = lens testEnvLogging (\s a -> s { testEnvLogging = a })
@@ -78,7 +79,9 @@ main = hspec $ do
       let garbageBytes = "foobarbaz,binary noise,0XDEADBEEF,etc"
 
       (metrics, logs, res) <- runTest $ do
-          appendToList id garbageBytes
+          -- actual append operation should succeed
+          Right _ <- appendToList id garbageBytes
+          -- but attempting to read it back out cause sa decode failure
           readAllTodos
 
 

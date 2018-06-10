@@ -1,6 +1,21 @@
 # constraint-reader
 
 
+SERVANT CURL NOTES
+
+
+to create a todo:
+```
+3465  curl -X POST -d '{"name":"second note via curl", "body" : "oh heck"}' -H 'Accept: application/json' -H 'Content-type: application/json' http://localhost:8081/todos
+```
+
+to get all todos
+```
+ 3466  curl localhost:8081/todos
+``` 
+
+
+
 NOTES CIRCA JUNEISH
 
 - link fpcomplete readert or simliar as backgroudn reading

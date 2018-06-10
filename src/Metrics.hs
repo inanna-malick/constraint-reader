@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
@@ -22,6 +23,8 @@ import           Control.Monad.Reader
 ------------------------------------------------------------------------------
 import Logging
 ------------------------------------------------------------------------------
+import qualified Database.Redis.IO as Redis
+import Data.String.Conv (toS)
 
 -- METRICS BOILERPLATE
 
@@ -29,7 +32,7 @@ data Metrics (mc :: (* -> *) -> Constraint) =
   Metrics { incrementCounterC :: forall m . mc m => CounterName -> m () }
 
 class HasMetrics s a | s -> a where
-    metrics :: Lens' s a
+    metricsLen :: Lens' s a
 
 -- | simplified metrics service
 class MonadMetrics m where
@@ -38,15 +41,36 @@ class MonadMetrics m where
 
 instance (HasMetrics env (Metrics mc), MonadReader env m, mc m) => MonadMetrics m where
   incrementCounter cn = do
-    fn <- asks (incrementCounterC . view metrics)
+    fn <- asks (incrementCounterC . view metricsLen)
     fn cn
 
 -- METRICS SERVICE IMPL
--- TODO: also back w/ redis, easy enough to do
-mockMetrics :: Metrics MonadLogging -- only requirement is ability to log 'counter increment' ops
-mockMetrics = Metrics
-  { incrementCounterC = \cn -> logMsg $ LogMsg Info ("(MOCK METRICS) increment:" ++ show cn)
+
+
+
+class ( MonadLogging m
+      , MonadIO m
+      ) => RedisMetricsDeps m
+instance ( MonadLogging m
+         , MonadIO m
+         ) => RedisMetricsDeps m
+
+-- TODO: impl ability to run redis cmds as a service?
+redisMetrics :: Redis.Pool -> Metrics RedisMetricsDeps
+redisMetrics pool = Metrics
+  { incrementCounterC = \cn -> do
+      newValue <- Redis.runRedis pool
+        . Redis.commands
+        $ Redis.hincrby k (toField cn) 1
+      logMsg $ LogMsg Debug $
+        "incremented metric:" ++ show cn ++ ", value is now: " ++ show newValue
   }
+  where
+    toField :: CounterName -> Redis.Field
+    toField = toS . unCounterName
+
+    k :: Redis.Key
+    k = "todo-app-metrics"
 
 -- test metrics service that uses underlying 'State' monad to store map of metrics
 testMetrics :: Metrics (MonadState (M.Map CounterName Int))

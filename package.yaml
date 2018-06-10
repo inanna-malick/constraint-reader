@@ -27,13 +27,18 @@ dependencies:
 - containers
 - lens
 - mtl
+- redis-io
+- servant-server
+- string-conv
+- tinylog
 - transformers
+- warp
 
 library:
   source-dirs: src
 
 executables:
-  constraint-reader-exe:
+  server:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

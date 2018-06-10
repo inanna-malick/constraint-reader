@@ -19,7 +19,9 @@ import           Control.Monad.Writer (MonadWriter)
 import qualified Control.Monad.Writer as W
 import           Data.Constraint (Constraint)
 import           Control.Monad.Reader
+import qualified System.Logger as TinyLog
 ------------------------------------------------------------------------------
+
 
 data LogLevel = Debug | Info | Error
   deriving (Eq, Ord, Show)
@@ -49,8 +51,12 @@ instance (HasLogging env (Logging mc), MonadReader env m, mc m) => MonadLogging 
 
 -- LOGGING SERVICE IMPL
 
-stdoutLogging :: Logging MonadIO -- only requirement is the ability to do IO, could also have MonadResource for file handle (todo: that)
-stdoutLogging = Logging {logMsgC = liftIO . putStrLn . show}
+tinylogLogging :: TinyLog.Logger -> Logging MonadIO -- only requirement is the ability to do IO, could also have MonadResource for file handle (todo: that)
+tinylogLogging tl = Logging {logMsgC = liftIO . f}
+  where
+    f (LogMsg Debug msg) = TinyLog.debug tl $ TinyLog.msg msg
+    f (LogMsg Info msg) = TinyLog.info tl $ TinyLog.msg msg
+    f (LogMsg Error msg) = TinyLog.err tl $ TinyLog.msg msg
 
 
 -- test logging service that uses underlying 'Writer' monad to write log messages

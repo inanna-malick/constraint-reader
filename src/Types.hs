@@ -11,7 +11,7 @@ import           GHC.Generics
 ------------------------------------------------------------------------------
 
 data Todo = Todo
-  { description :: String
+  { name :: String
   , body :: String
   } deriving (Generic, Show, Eq, Ord)
 
