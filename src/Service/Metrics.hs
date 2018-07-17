@@ -1,7 +1,6 @@
 module Service.Metrics where
 
 ------------------------------------------------------------------------------
-import           Control.Lens
 import           Control.Monad.Reader
 import           Control.Monad.State (MonadState)
 import qualified Control.Monad.State as S
@@ -18,8 +17,9 @@ import           Service.Logging
 data Metrics (mc :: (* -> *) -> Constraint) =
   Metrics { incrementCounterC :: forall m . mc m => CounterName -> m () }
 
-class HasMetrics s a | s -> a where
-    metricsLen :: Lens' s a
+class HasMetrics caps a | caps -> a where
+    -- TODO new name
+    metricsLen :: caps -> a
 
 -- | simplified metrics service
 class MonadMetrics m where
@@ -28,7 +28,7 @@ class MonadMetrics m where
 
 instance (HasMetrics env (Metrics mc), MonadReader env m, mc m) => MonadMetrics m where
   incrementCounter cn = do
-    fn <- asks (incrementCounterC . view metricsLen)
+    fn <- asks (incrementCounterC . metricsLen)
     fn cn
 
 -- METRICS SERVICE IMPL

@@ -33,7 +33,6 @@ dependencies:
 - bytestring
 - constraints
 - containers
-- lens
 - mtl
 - redis-io
 - servant-server

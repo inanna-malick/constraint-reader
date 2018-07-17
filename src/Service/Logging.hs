@@ -1,7 +1,6 @@
 module Service.Logging where
 
 ------------------------------------------------------------------------------
-import           Control.Lens
 import           Control.Monad.IO.Class (liftIO, MonadIO)
 import           Control.Monad.Writer (MonadWriter)
 import qualified Control.Monad.Writer as W
@@ -24,8 +23,8 @@ data LogMsg = LogMsg
 data Logging (mc :: (* -> *) -> Constraint) =
   Logging { logMsgC :: forall m . mc m => LogMsg -> m () }
 
-class HasLogging s a | s -> a where
-    logging :: Lens' s a
+class HasLogging caps a | caps -> a where
+    logging :: caps -> a
 
 -- | simplified logging service
 class MonadLogging m where
@@ -34,7 +33,7 @@ class MonadLogging m where
 
 instance (HasLogging env (Logging mc), MonadReader env m, mc m) => MonadLogging m where
   logMsg msg = do
-    fn <- asks (logMsgC . view logging)
+    fn <- asks (logMsgC . logging)
     fn msg
 
 -- LOGGING SERVICE IMPL

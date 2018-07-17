@@ -1,7 +1,6 @@
 module Server (runServer) where
 
 ------------------------------------------------------------------------------
-import           Control.Lens (lens)
 import qualified Control.Monad.Except as E
 import           Control.Monad.IO.Class (MonadIO)
 import qualified Control.Monad.Reader as R
@@ -76,13 +75,13 @@ data Env =
       }
 
 instance HasMetrics Env (Metrics RedisMetricsDeps) where
-    metricsLen = lens envMetrics (\s a -> s { envMetrics = a })
+    metricsLen = envMetrics
 
 instance HasLogging Env (Logging MonadIO) where
-    logging = lens envLogging (\s a -> s { envLogging = a })
+    logging = envLogging
 
 instance HasDataStore Env (DataStore DataStoreError RedisDataStoreDeps) where
-    datastore = lens envDataStore (\s a -> s { envDataStore = a })
+    datastore = envDataStore
 
 withEnv
   :: TinyLog.Logger

@@ -1,6 +1,5 @@
 
 ------------------------------------------------------------------------------
-import           Control.Lens
 import           Control.Monad.IO.Class (MonadIO)
 import qualified Control.Monad.State as S
 import qualified Control.Monad.Writer as W
@@ -25,13 +24,13 @@ data TestEnv = TestEnv
   }
 
 instance HasMetrics TestEnv (Metrics (S.MonadState (Map CounterName Int))) where
-    metricsLen = lens testEnvMetrics (\s a -> s { testEnvMetrics = a })
+    metricsLen = testEnvMetrics
 
 instance HasLogging TestEnv (Logging (W.MonadWriter [LogMsg])) where
-    logging = lens testEnvLogging (\s a -> s { testEnvLogging = a })
+    logging = testEnvLogging
 
 instance HasDataStore TestEnv (DataStore DataStoreError MonadIO) where
-    datastore = lens testEnvDataStore (\s a -> s { testEnvDataStore = a })
+    datastore = testEnvDataStore
 
 
 main :: IO ()

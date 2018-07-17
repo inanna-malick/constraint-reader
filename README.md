@@ -6,7 +6,7 @@ SERVANT CURL NOTES
 
 to create a todo:
 ```
-3465  curl -X POST -d '{"name":"second note via curl", "body" : "oh heck"}' -H 'Accept: application/json' -H 'Content-type: application/json' http://localhost:8081/todos
+3465  curl -X POST -d '{"name":"note via curl", "body" : "note numero uno"}' -H 'Accept: application/json' -H 'Content-type: application/json' http://localhost:8081/todos
 ```
 
 to get all todos
@@ -34,23 +34,83 @@ blogpost outline:
 
 - key points
 -- describe app, provide bash + curl commands
+-- TODO: break this bit up, have example (minimal publish service) in the middle
 -- describe implemnetation strategy: we want to be able to fork threads and run and unify async io, so we're going to put a bunch of capabilities (records containing useful functions) in some record, `Env`. We'll run our whole app in `ReaderT Env IO`. If you're not already familiar with this approach, I encourage you to read (FP link) which both describes and motivates this approach (tldr: StateT, WriterT, etc have subtle flaws when used with `Async` so just use a record with an `IORef` instead of stack a bunch of monad transformers)
+-- These capabilities will be absolutely minimal: for example, if implementing a service to publish JSON messages to some queue, you should prefer the second implementation to the first:
+```
+-- | (First Impl) service that publishes JSON messages 
+data PublishService = PublishService { publishJSONCap :: forall a. ToJSON a => a -> IO () }
+
+-- | (Second Impl) service that publishes messages
+data PublishService = PublishService { publishMessageCap :: (a -> ByteString) -> a -> IO () }
+```
+
+-- having minmial capabilities makes it easy to provide multiple implementaions for test, prod, etc contexts.
+-- more complex logic can then be built on top of these minimal service implementations, so that no expressive power is lost.
+```
+publishJSON :: ToJSON a => PublishService -> a -> IO
+publishJSON pubSvc = (publishMessageCap pubSvc) JSON.toJSON
+```
+
+This is a bit cumbersome, so let's introduce a type class that, combined with MTL's `MonadReader`, will make use of capabilities much more ergonomic. (TODO link)
+
+```
+-- the | syntax expresses a functional dependency such that GHC knows that for any 'caps' there is at most one 'a'
+class HasPublishService caps a | caps -> a where
+  getPublishService :: caps -> a
+
+instance HasPublishService Env PublishService where
+  getPublishService (Env _ _ publishService _) = publishService
+
+class MonadPublishService m where
+  publishMessage :: (a -> Bytestring) -> a -> m ()
+  
+instance (HasPublishService caps PublishService, MonadReader caps m, MonadIO m) => MonadPublishService m where
+  publishMessage f a = do
+    fn <- asks getPublishService
+    liftIO $ fn f a
+```
+
+-- at this point basic concept is introduced, ask reader to imagine an application made up of such capabilities, with logging, metrics, datastore access, etc all split among multiple such capabilities all wrapped in one big `Env` record and run in `ReaderT Env IO`.
+
+
+-- THE KEY QUESTION: what if you want to have capbilities _rely on each other_? If a data store capability is unable to connect, you might want to log an error _using the same logging service as the rest of your application_. You might want to increment some metric counter every time you log an error message from your logging service _using the same metric service as the rest of your application_. Sure, you could have each service take all services it depends on as parameters at initialization time, but that's cumbersome and error prone in that it provides no guarantee that all services that require, eg, logging capabilities are using the same logging service. 
+
+
+-- since these are just records, not instances of some typeclass, we can easily provide some values (connection pools, file handles, etc) at initialization time.
+
+-- TODO: by this point we need intro to `HasXYZ` type classes and use of them with `MonadReader`
+
 -- We want to be able to have our capabilities _reference each other_. There are two ways to do so. The first (having each ) involves using an infinite type when you attempt to construct an instance of your `Env` type.
 ```
-data FooCap m = FooCap { fooCap :: m () } -- some action that just runs in IO
-data BarCap m = BarCap { barCap :: m () } -- some action that requires IO + Foo
-data BazEnv m = BazEnv
+λ: data FooCap m = FooCap { fooCap :: m () } -- some action that just runs in IO
+λ: data BarCap m = BarCap { barCap :: m () } -- some action that requires IO + Foo
+λ: data BazEnv m = BazEnv
   { foo :: FooCap IO
   , bar :: BarCap (ReaderT (FooEnv m) IO)
   }
 
-bazEnv :: BazEnv (ReaderT (BazEnv (ReaderT (BazEnv ...
+bazEnv :: BazEnv (ReaderT (BazEnv (ReaderT (BazEnv ... -- and so on
 ```
 
 The second way, the approach that this post will focus on, relies on parameterizing our capabilities not by the concrete monad stacks they run in but by the _constraints_ that they impose on their monad stack. Let's start with a stripped-down example to make it clear what I mean by parameterizing a data instance not on a type but on a _constraint_.
 
 ```
+λ: import Control.Monad.IO.Class (MonadIO, liftIO)
+λ: data FooCap = FooCap {fooCap :: forall m . mc m => m ()}
+λ: :i FooCap
+data FooCap (mc :: (* -> *) -> Constraint)
+  = FooCap {fooCap :: forall (m :: * -> *). mc m => m ()}
+
+λ: ioFooCap = FooCap { fooCap = liftIO $ putStrLn "foo" } :: FooCap MonadIO
+λ: fooCap $ ioCap
+foo
 ```
+
+Here you can see a sort of minimalist example of 
+λ: :I FooCap
+unknown command ':I'
+use :? for help.
 
 - introduce problem: building up a stack of dependencies to do ReaderT pattern
 - introduce 1x service with toy example (just copy examples from ReaderT article w/ citation ofc)

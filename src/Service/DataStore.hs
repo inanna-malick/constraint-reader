@@ -1,7 +1,6 @@
 module Service.DataStore where
 
 ------------------------------------------------------------------------------
-import           Control.Lens
 import           Control.Monad.IO.Class (liftIO, MonadIO)
 import           Control.Monad.Reader
 import           Data.ByteString.Lazy (ByteString)
@@ -20,8 +19,8 @@ data DataStore err (mc :: (* -> *) -> Constraint) = DataStore
   , readAllListC :: forall m x . mc m => (ByteString -> Either err x) -> m (Either err [x])
   }
 
-class HasDataStore s a | s -> a where
-    datastore :: Lens' s a
+class HasDataStore caps a | caps -> a where
+    datastore :: caps -> a
 
 -- | simplified datastore service
 -- TODO: see if I can drop and just use caps constraints
@@ -32,11 +31,11 @@ class MonadDataStore err m where
 
 instance (HasDataStore env (DataStore err mc), MonadReader env m, mc m) => MonadDataStore err m where
   appendToList f elem'= do
-    fn <- asks (appendToListC . view datastore)
+    fn <- asks (appendToListC . datastore)
     fn f elem'
 
   readAllList f = do
-    fn <- asks (readAllListC . view datastore)
+    fn <- asks (readAllListC . datastore)
     fn f
 
 -- DATASTORE SERVICE MOCK IMPL
